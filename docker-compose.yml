@@ -1,0 +1,11 @@
+version: '2'
+services:
+  web:
+    image: loadbalancer
+    ports:
+     - "9000:9000"
+     - "9090:9090"
+    # mount project directory to code directory on container
+    volumes:
+     - .:/code
+    command: go run lbserver.go
