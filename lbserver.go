@@ -62,6 +62,7 @@ func updateIpTables(w http.ResponseWriter, r *http.Request) {
   log.Println(serversStructs)
   // send siegeInit to the siege service
   b, err := json.Marshal(siegeInit)
+  log.Println(b)
   if err != nil {
     log.Println("error marshaling json: ", err)
   }
