@@ -5,7 +5,6 @@ import (
   "net/url"
   "encoding/json"
   "github.com/aebrow4/unloadx-lb/loadbalancer"
-  "bytes"
   "log"
 )
 
@@ -60,33 +59,15 @@ func updateIpTables(w http.ResponseWriter, r *http.Request) {
     serverPointers = append(serverPointers, &serverURL)
   }
   log.Println(serversStructs)
-  // send siegeInit to the siege service
   b, err := json.Marshal(siegeInit)
-  log.Println(b)
   if err != nil {
     log.Println("error marshaling json: ", err)
   }
-  // convert the []byte to a buffer that http.POST can use
-  var buf bytes.Buffer
-  // log.Println("posting to siege")
-  buf.Write(b)
-  // _, er := http.Post("http://52.9.136.53:4000/siege", "application/json; charset=utf-8", &buf)
-  //
-  // if er != nil {
-  //   log.Println(err)
-  // }
-
   // start the load balancer, passing in the array
-  // this works, but for some reason it causes the above call to
-  // WriteHeader to be ignored
   log.Println("starting loadbalancer")
   loadbalancer.LoadBalance(loadbalancer.RoundRobin, serverPointers)
-  // i think these lines of code are not being reached because starting the
-  // server locks up the thread?...
   log.Println("responding to post")
-  // w.WriteHeader(http.StatusOK)
   w.Write(b)
-  w.WriteHeader(http.StatusOK)
 }
 
 
