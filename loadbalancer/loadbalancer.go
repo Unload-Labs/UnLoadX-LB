@@ -4,6 +4,7 @@ import (
   "net/http"
   "net/http/httputil"
   "net/url"
+  // "log"
 )
 
 // TODO
@@ -28,6 +29,10 @@ func RoundRobin(servers []*url.URL) *httputil.ReverseProxy {
   return &httputil.ReverseProxy{Director: director}
 }
 
+
+// func Health(servers []*url.URL) *httputil.ReverseProxy {
+//
+// }
 
 // the LoadBalance function takes a loadbalancing strategy function,
 // and an array of servers which it will pass to the strategy function
