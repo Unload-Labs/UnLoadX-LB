@@ -67,13 +67,13 @@ func updateIpTables(w http.ResponseWriter, r *http.Request) {
   }
   // convert the []byte to a buffer that http.POST can use
   var buf bytes.Buffer
-  log.Println("posting to siege")
+  // log.Println("posting to siege")
   buf.Write(b)
-  _, er := http.Post("http://52.9.136.53:4000/siege", "application/json; charset=utf-8", &buf)
-
-  if er != nil {
-    log.Println(err)
-  }
+  // _, er := http.Post("http://52.9.136.53:4000/siege", "application/json; charset=utf-8", &buf)
+  //
+  // if er != nil {
+  //   log.Println(err)
+  // }
 
   // start the load balancer, passing in the array
   // this works, but for some reason it causes the above call to
@@ -83,6 +83,8 @@ func updateIpTables(w http.ResponseWriter, r *http.Request) {
   // i think these lines of code are not being reached because starting the
   // server locks up the thread?...
   log.Println("responding to post")
+  // w.WriteHeader(http.StatusOK)
+  w.Write(b)
   w.WriteHeader(http.StatusOK)
 }
 
