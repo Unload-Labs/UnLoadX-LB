@@ -12,6 +12,7 @@ import (
 
 // define a type that all strategy functions will implement
 type strategy func([]*url.URL) *httputil.ReverseProxy
+
 func RoundRobin(servers []*url.URL) *httputil.ReverseProxy {
   var currServer int = 0
   director := func(req *http.Request) {
