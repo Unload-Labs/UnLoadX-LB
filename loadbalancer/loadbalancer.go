@@ -26,6 +26,8 @@ func RoundRobin(servers []*url.URL) *httputil.ReverseProxy {
       currServer = 0
     }
   }
+
+  
   return &httputil.ReverseProxy{Director: director}
 }
 
