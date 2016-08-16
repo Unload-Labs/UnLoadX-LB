@@ -60,7 +60,11 @@ func LoadBalance(fn strategy, servers[]*url.URL) {
   var serverHealthsPtrs []*lbutil.ServerHealth
   // if strategy is health, poll servers for their health
   if runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name() == "github.com/aebrow4/unloadx-lb/loadbalancer.Health" {
-    // initialize array of health structs to store health info in
+    // initialize array of health structs to store health info in, and store the
+    // port the user's process runs on since we will need to ping it later to check
+    // for availability
+    var serverPorts []string
+
     for _, server := range servers {
       currServerHealth := &lbutil.ServerHealth{
         Address: strings.Split(server.Host, ":")[0],
@@ -68,8 +72,8 @@ func LoadBalance(fn strategy, servers[]*url.URL) {
         Mem: 0,
       }
       serverHealths = append(serverHealths, currServerHealth)
+      serverPorts = append(serverPorts, strings.Split(server.Host, ":")[1])
     }
-
 
     for _, val := range serverHealths {
       serverHealthsPtrs = append(serverHealthsPtrs, val)
@@ -83,17 +87,30 @@ func LoadBalance(fn strategy, servers[]*url.URL) {
         for {
            select {
             case <- ticker.C:
-                for _, serverHealth := range serverHealths[0:] {
-                  r, _ := http.Get("http://" + serverHealth.Address + ":5000")
-                  var jsonBody map[string]interface{}
-                  dec := json.NewDecoder(r.Body)
-                  dec.Decode(&jsonBody)
-                  serverHealth.Cpu = jsonBody["cpu"].(float64)
-                  serverHealth.Mem = jsonBody["memory"].(float64)
+              for i, serverHealth := range serverHealths[0:] {
+                r, _ := http.Get("http://" + serverHealth.Address + ":5000")
+                var jsonBody map[string]interface{}
+                dec := json.NewDecoder(r.Body)
+                dec.Decode(&jsonBody)
+                serverHealth.Cpu = jsonBody["cpu"].(float64)
+                serverHealth.Mem = jsonBody["memory"].(float64)
+                serverHealth.Avail = true
+
+                // update server to unavailable if status code doesn't begin with 2
+                // send a request to the server rather than the health service, since
+                // the health service may remain up even if the server goes down
+                // this is arguably an expensive way of checking for server availability,
+                // but better than pings which assume that the administrator has the ping
+                // server turned on
+                resp, err := http.Get("http://" + serverHealth.Address + ":" + serverPorts[i])
+                if resp == nil || err != nil || resp.StatusCode < 200 || resp.StatusCode >= 300 {
+                  serverHealth.Avail = false
                 }
+                log.Println("cpu: ", serverHealth.Cpu, " and mem: ", serverHealth.Mem)
+              }
             case <- quit:
-                ticker.Stop()
-                return
+              ticker.Stop()
+              return
             }
         }
      }()
