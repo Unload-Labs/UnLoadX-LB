@@ -65,11 +65,10 @@ func updateIpTables(w http.ResponseWriter, r *http.Request) {
   }
   // start the load balancer, passing in the array
   log.Println("starting loadbalancer")
-  loadbalancer.LoadBalance(loadbalancer.RoundRobin, serverPointers)
+  loadbalancer.LoadBalance(loadbalancer.Health, serverPointers)
   log.Println("responding to post")
   w.Write(b)
 }
-
 
 // listens for a POST request of IPs and ports from the API server
 func main() {
