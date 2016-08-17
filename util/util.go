@@ -17,6 +17,7 @@ type ServerHealth struct {
   Avail bool
 }
 
+<<<<<<< 663ea46f3ca87f46af0fcee46e1a503b7c824a60
 // a linear search method for unsorted int slices and a target value
 func contains(collection []int, target int) bool {
     for _, val := range collection {
