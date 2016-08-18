@@ -7,6 +7,7 @@ import (
   "encoding/json"
   "strings"
   "time"
+  "bytes"
 )
 
 // data structure for storing server metrics
@@ -86,7 +87,12 @@ func ChooseOnHealth(healths []*ServerHealth) int {
   return lowestMemIdx
 }
 
-func GetHealth(servers[]*url.URL, serverHealths[]*ServerHealth, serverHealthsPtrs[]*ServerHealth) []*ServerHealth {
+
+// Poll a collection of servers for health information.  Optionally specify a duration
+// to poll over.
+// Return a pointer to the location where the collection of healths is stored
+// Calls a function to calculate average healths over the duration
+func GetHealth(servers[]*url.URL, serverHealths[]*ServerHealth, serverHealthsPtrs[]*ServerHealth, duration int, testId int) []*ServerHealth {
   var serverPorts []string
 
   for _, server := range servers {
@@ -108,35 +114,93 @@ func GetHealth(servers[]*url.URL, serverHealths[]*ServerHealth, serverHealthsPtr
   ticker := time.NewTicker(1 * time.Second)
   quit := make(chan struct{})
   go func() {
-      for {
-         select {
-          case <- ticker.C:
-            for i, serverHealth := range serverHealths[0:] {
-              r, _ := http.Get("http://" + serverHealth.Address + ":5000")
-              var jsonBody map[string]interface{}
-              dec := json.NewDecoder(r.Body)
-              dec.Decode(&jsonBody)
-              serverHealth.Cpu = jsonBody["cpu"].(float64)
-              serverHealth.Mem = jsonBody["memory"].(float64)
-              serverHealth.Avail = true
+    for {
+     select {
+      case <- ticker.C:
+        for i, serverHealth := range serverHealths[0:] {
+          r, _ := http.Get("http://" + serverHealth.Address + ":5000")
+          var jsonBody map[string]interface{}
+          dec := json.NewDecoder(r.Body)
+          dec.Decode(&jsonBody)
+          serverHealth.Cpu = jsonBody["cpu"].(float64)
+          serverHealth.Mem = jsonBody["memory"].(float64)
+          serverHealth.Avail = true
 
-              // update server to unavailable if status code doesn't begin with 2
-              // send a request to the server rather than the health service, since
-              // the health service may remain up even if the server goes down
-              // this is arguably an expensive way of checking for server availability,
-              // but better than pings which assume that the administrator has the ping
-              // server turned on
-              resp, err := http.Get("http://" + serverHealth.Address + ":" + serverPorts[i])
-              if resp == nil || err != nil || resp.StatusCode < 200 || resp.StatusCode >= 300 {
-                log.Println("error ocurred in get request")
-                serverHealth.Avail = false
-              }
-            }
-          case <- quit:
-            ticker.Stop()
-            return
+          // update server to unavailable if status code doesn't begin with 2
+          // send a request to the server rather than the health service, since
+          // the health service may remain up even if the server goes down
+          // this is arguably an expensive way of checking for server availability,
+          // but better than pings which assume that the administrator has the ping
+          // server turned on
+          resp, err := http.Get("http://" + serverHealth.Address + ":" + serverPorts[i])
+          if resp == nil || err != nil || resp.StatusCode < 200 || resp.StatusCode >= 300 {
+            log.Println("error ocurred in get request", resp)
+            serverHealth.Avail = false
           }
+        }
+      case <- quit:
+        ticker.Stop()
+        return
       }
-   }()
+    }
+  }()
+  if duration != 0 {
+    CalcAvgHealth(duration, serverHealthsPtrs[0:], testId)
+  }
   return serverHealthsPtrs[0:]
+}
+
+func CalcAvgHealth(duration int, serverHealthsPtrs[]*ServerHealth, testId int) {
+  // for duration seconds, every second add the value of each metric to an analagous
+  // struct field that will be used to calculate the average
+  numServers := len(serverHealthsPtrs)
+  avgHealths := make([]ServerHealth, numServers)
+
+  numTicks := 0
+  ticker := time.NewTicker(1 * time.Second)
+  // quit := make(chan struct{})
+  for numTicks < duration {
+    for i, server := range serverHealthsPtrs {
+      if numTicks == 0 {
+        avgHealths[i].Address = server.Address
+      }
+      avgHealths[i].Cpu = avgHealths[i].Cpu + server.Cpu
+      avgHealths[i].Mem = avgHealths[i].Mem + server.Mem
+      log.Println("avg mem sum: ", avgHealths[i].Mem)
+    }
+    numTicks++
+    <-ticker.C
+    if numTicks == duration {
+      ticker.Stop()
+    }
+  }
+  for _, server := range avgHealths {
+    server.Cpu = server.Cpu / float64(numTicks)
+    server.Mem = server.Mem / float64(numTicks)
+  }
+
+  type AvgServerHealths struct {
+    testId int
+    serverHealths []ServerHealth
+  }
+
+  postData := AvgServerHealths{
+    testId: testId,
+    serverHealths: avgHealths,
+  }
+
+  log.Println(postData)
+  // post to /api/serverhealth
+  // resp, err := http.Post("http://52.9.136.53:3000/api/serverhealth", )
+  marshalledData, err := json.Marshal(postData)
+  req, err := http.NewRequest("POST", "http://52.9.136.53:3000/api/serverhealth", bytes.NewBuffer(marshalledData))
+  req.Header.Set("Content-Type", "application/json")
+  client := &http.Client{}
+  resp, err := client.Do(req)
+  if err != nil {
+    panic(err)
+  }
+  defer resp.Body.Close()
+  log.Println("sent post")
+  return
 }
