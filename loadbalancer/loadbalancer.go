@@ -26,7 +26,6 @@ func RoundRobin(servers []*url.URL, _ []*lbutil.ServerHealth) *httputil.ReverseP
     }
   }
 
-
   return &httputil.ReverseProxy{Director: director}
 }
 
@@ -47,13 +46,13 @@ func Health(servers []*url.URL, healths []*lbutil.ServerHealth) *httputil.Revers
 
 // the LoadBalance function takes a loadbalancing strategy function,
 // and an array of servers which it will pass to the strategy function
-func LoadBalance(fn strategy, servers[]*url.URL) {
+func LoadBalance(fn strategy, servers[]*url.URL, duration int) {
   serverHealths := make([]*lbutil.ServerHealth, 0)
   var serverHealthsPtrs []*lbutil.ServerHealth
 
   // if strategy is health, poll servers for their health
   if runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name() == "github.com/aebrow4/unloadx-lb/loadbalancer.Health" {
-    serverHealthsPtrs = lbutil.GetHealth(servers, serverHealths[0:], serverHealthsPtrs[0:]);
+    serverHealthsPtrs = lbutil.GetHealth(servers, serverHealths[0:], serverHealthsPtrs[0:], duration);
   }
 
   proxy := fn(servers, serverHealthsPtrs)
