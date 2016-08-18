@@ -7,6 +7,7 @@ import (
   "encoding/json"
   "strings"
   "time"
+  "bytes"
 )
 
 // data structure for storing server metrics
@@ -91,7 +92,7 @@ func ChooseOnHealth(healths []*ServerHealth) int {
 // to poll over.
 // Return a pointer to the location where the collection of healths is stored
 // Calls a function to calculate average healths over the duration
-func GetHealth(servers[]*url.URL, serverHealths[]*ServerHealth, serverHealthsPtrs[]*ServerHealth, duration int) []*ServerHealth {
+func GetHealth(servers[]*url.URL, serverHealths[]*ServerHealth, serverHealthsPtrs[]*ServerHealth, duration int, testId int) []*ServerHealth {
   var serverPorts []string
 
   for _, server := range servers {
@@ -144,12 +145,12 @@ func GetHealth(servers[]*url.URL, serverHealths[]*ServerHealth, serverHealthsPtr
     }
   }()
   if duration != 0 {
-    CalcAvgHealth(duration, serverHealthsPtrs[0:])
+    CalcAvgHealth(duration, serverHealthsPtrs[0:], testId)
   }
   return serverHealthsPtrs[0:]
 }
 
-func CalcAvgHealth(duration int, serverHealthsPtrs[]*ServerHealth) []ServerHealth {
+func CalcAvgHealth(duration int, serverHealthsPtrs[]*ServerHealth, testId int) {
   // for duration seconds, every second add the value of each metric to an analagous
   // struct field that will be used to calculate the average
   numServers := len(serverHealthsPtrs)
@@ -170,15 +171,36 @@ func CalcAvgHealth(duration int, serverHealthsPtrs[]*ServerHealth) []ServerHealt
     numTicks++
     <-ticker.C
     if numTicks == duration {
-      log.Println("entered conditional")
       ticker.Stop()
     }
   }
-  log.Println("got here?")
   for _, server := range avgHealths {
     server.Cpu = server.Cpu / float64(numTicks)
     server.Mem = server.Mem / float64(numTicks)
   }
-  log.Println(avgHealths)
-  return avgHealths
+
+  type AvgServerHealths struct {
+    testId int
+    serverHealths []ServerHealth
+  }
+
+  postData := AvgServerHealths{
+    testId: testId,
+    serverHealths: avgHealths,
+  }
+
+  log.Println(postData)
+  // post to /api/serverhealth
+  // resp, err := http.Post("http://52.9.136.53:3000/api/serverhealth", )
+  marshalledData, err := json.Marshal(postData)
+  req, err := http.NewRequest("POST", "http://52.9.136.53:3000/api/serverhealth", bytes.NewBuffer(marshalledData))
+  req.Header.Set("Content-Type", "application/json")
+  client := &http.Client{}
+  resp, err := client.Do(req)
+  if err != nil {
+    panic(err)
+  }
+  defer resp.Body.Close()
+  log.Println("sent post")
+  return
 }

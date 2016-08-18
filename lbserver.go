@@ -33,6 +33,7 @@ func updateIpTables(w http.ResponseWriter, r *http.Request) {
     TestId: jsonBody["testId"].(float64),
   }
   duration := int(siegeInit.Volume)
+  testId := int(siegeInit.TestId)
 
   // a bunch of type assertions to index into and extract the data
   // which is a series of nested maps and interfaces
@@ -66,7 +67,7 @@ func updateIpTables(w http.ResponseWriter, r *http.Request) {
   }
   // start the load balancer, passing in the array
   log.Println("starting loadbalancer")
-  loadbalancer.LoadBalance(loadbalancer.Health, serverPointers, duration)
+  loadbalancer.LoadBalance(loadbalancer.Health, serverPointers, duration, testId)
   log.Println("responding to post")
   w.Write(b)
 }
