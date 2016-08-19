@@ -87,7 +87,6 @@ func ChooseOnHealth(healths []*ServerHealth) int {
   return lowestMemIdx
 }
 
-
 // Poll a collection of servers for health information.  Optionally specify a duration
 // to poll over.
 // Return a pointer to the location where the collection of healths is stored
