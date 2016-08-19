@@ -180,26 +180,23 @@ func CalcAvgHealth(duration int, serverHealthsPtrs[]*ServerHealth, testId int) {
   }
 
   type AvgServerHealths struct {
-    testId int
-    serverHealths []ServerHealth
+    TestId int
+    ServerHealths []ServerHealth
   }
 
   postData := AvgServerHealths{
-    testId: testId,
-    serverHealths: avgHealths,
+    TestId: testId,
+    ServerHealths: avgHealths,
   }
 
-  log.Println(postData)
-  // post to /api/serverhealth
-  // resp, err := http.Post("http://52.9.136.53:3000/api/serverhealth", )
-  marshalledData, err := json.Marshal(postData)
-  req, err := http.NewRequest("POST", "http://52.9.136.53:3000/api/serverhealth", bytes.NewBuffer(marshalledData))
-  req.Header.Set("Content-Type", "application/json")
-  client := &http.Client{}
-  resp, err := client.Do(req)
+  MarshalledData, err := json.Marshal(postData)
   if err != nil {
-    panic(err)
+    log.Println("err marshaling the boy: ", err)
   }
+
+  r := bytes.NewReader(MarshalledData)
+
+  resp, _ := http.Post("http://52.9.136.53:3000/api/serverhealth", "application/json", r)
   defer resp.Body.Close()
   log.Println("sent post")
   return
