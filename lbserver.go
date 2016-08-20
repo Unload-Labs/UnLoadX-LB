@@ -1,39 +1,30 @@
 package main
 
 import (
+  "log"
   "net/http"
   "net/url"
   "encoding/json"
   "github.com/aebrow4/unloadx-lb/loadbalancer"
-  "log"
+  "github.com/aebrow4/unloadx-lb/util"
 )
 
 func updateIpTables(w http.ResponseWriter, r *http.Request) {
-  // declare some type to parse the POSTed JSON:
-  // jsonBody holds the entire JSON object
-  // message holds the objects of ip, port, and application info
-  // siegeInput holds the extracted volume and testId to be relayed
-  // to the siege service
 
   var jsonBody map[string]interface{}
-
-  type message struct {
-    Ip, Port, Application string
-  }
-  var serversStructs []message
   dec := json.NewDecoder(r.Body)
   dec.Decode(&jsonBody)
-  type siegeInput struct {
-    Volume float64
-    TestId float64
-  }
 
-  siegeInit := siegeInput{
+  var serversStructs []lbutil.Message
+  siegeInit := lbutil.SiegeInput{
     Volume: jsonBody["volume"].(float64),
     TestId: jsonBody["testId"].(float64),
   }
   duration := int(siegeInit.Volume)
   testId := int(siegeInit.TestId)
+
+  // store unavailable servers in this struct
+  siegeVoid := lbutil.NoSiege{}
 
   // a bunch of type assertions to index into and extract the data
   // which is a series of nested maps and interfaces
@@ -42,12 +33,33 @@ func updateIpTables(w http.ResponseWriter, r *http.Request) {
     ip := v.(map[string]interface{})["ip"].(string)
     port := v.(map[string]interface{})["port"].(string)
     application := v.(map[string]interface{})["application_type"].(string)
-    server := message{
+    server := lbutil.Message{
       Ip: ip,
       Port: port,
       Application: application,
     }
     serversStructs = append(serversStructs, server)
+
+    // test for server availability before proceeding
+    healthAvail := lbutil.CheckServerHealthAvail(server)
+    serverAvail := lbutil.CheckServerAvail(server)
+    if healthAvail == false || serverAvail == false {
+      serverUnavail := lbutil.ServerAvailability{
+        Health: healthAvail,
+        Server: serverAvail,
+        Ip: ip,
+      }
+      siegeVoid.Servers = append(siegeVoid.Servers, serverUnavail)
+    }
+  }
+
+  // if servers are unavailable in any way, respond to the client with
+  // that information, do not start LB and do not start siege
+  if len(siegeVoid.Servers) > 0 {
+    log.Println("detected unavail servers", siegeVoid)
+    buf, _ := json.Marshal(siegeVoid)
+    w.Write(buf)
+    return
   }
 
   serverURLs := make([]url.URL, 0)
@@ -60,16 +72,11 @@ func updateIpTables(w http.ResponseWriter, r *http.Request) {
     serverURLs = append(serverURLs, serverURL)
     serverPointers = append(serverPointers, &serverURL)
   }
-  log.Println(serversStructs)
-  b, err := json.Marshal(siegeInit)
-  if err != nil {
-    log.Println("error marshaling json: ", err)
-  }
+  buf, _ := json.Marshal(siegeInit)
   // start the load balancer, passing in the array
   log.Println("starting loadbalancer")
   loadbalancer.LoadBalance(loadbalancer.Health, serverPointers, duration, testId)
-  log.Println("responding to post")
-  w.Write(b)
+  w.Write(buf)
 }
 
 // listens for a POST request of IPs and ports from the API server

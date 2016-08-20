@@ -18,14 +18,33 @@ type ServerHealth struct {
   Avail bool
 }
 
+type ServerAvailability struct {
+  Health bool
+  Server bool
+  Ip string
+}
+
+type Message struct {
+  Ip, Port, Application string
+}
+
+type SiegeInput struct {
+  Volume float64
+  TestId float64
+}
+
+type NoSiege struct {
+  Servers []ServerAvailability
+}
+
 // a linear search method for unsorted int slices and a target value
 func contains(collection []int, target int) bool {
-    for _, val := range collection {
-        if val == target {
-            return true
-        }
+  for _, val := range collection {
+    if val == target {
+      return true
     }
-    return false
+  }
+  return false
 }
 
 // Given a slice of structs with server health and status, return the index
@@ -111,19 +130,25 @@ func GetHealth(servers[]*url.URL, serverHealths[]*ServerHealth, serverHealthsPtr
   // send an HTTP request for each server in serverHealths
   // updating the serverHealths structs with the response info
   ticker := time.NewTicker(1 * time.Second)
+  numTicks := 0
   quit := make(chan struct{})
   go func() {
-    for {
+    for numTicks < duration{
      select {
       case <- ticker.C:
         for i, serverHealth := range serverHealths[0:] {
-          r, _ := http.Get("http://" + serverHealth.Address + ":5000")
+          serverHealth.Avail = true
+          r, err := http.Get("http://" + serverHealth.Address + ":5000")
+          if err != nil {
+            log.Println("Failed to get health from ", serverHealth.Address)
+            serverHealth.Avail = false;
+            continue
+          }
           var jsonBody map[string]interface{}
           dec := json.NewDecoder(r.Body)
           dec.Decode(&jsonBody)
           serverHealth.Cpu = jsonBody["cpu"].(float64)
           serverHealth.Mem = jsonBody["memory"].(float64)
-          serverHealth.Avail = true
 
           // update server to unavailable if status code doesn't begin with 2
           // send a request to the server rather than the health service, since
@@ -132,11 +157,16 @@ func GetHealth(servers[]*url.URL, serverHealths[]*ServerHealth, serverHealthsPtr
           // but better than pings which assume that the administrator has the ping
           // server turned on
           resp, err := http.Get("http://" + serverHealth.Address + ":" + serverPorts[i])
-          if resp == nil || err != nil || resp.StatusCode < 200 || resp.StatusCode >= 300 {
-            log.Println("error ocurred in get request", resp)
-            serverHealth.Avail = false
+          if resp == nil {
+            log.Println("no response to request")
+            serverHealth.Avail = false;
+          }
+          if err != nil {
+            log.Println("error in request to client server", err)
+            serverHealth.Avail = false;
           }
         }
+        numTicks++
       case <- quit:
         ticker.Stop()
         return
@@ -157,7 +187,6 @@ func CalcAvgHealth(duration int, serverHealthsPtrs[]*ServerHealth, testId int) {
 
   numTicks := 0
   ticker := time.NewTicker(1 * time.Second)
-  // quit := make(chan struct{})
   for numTicks < duration {
     for i, server := range serverHealthsPtrs {
       if numTicks == 0 {
@@ -199,4 +228,26 @@ func CalcAvgHealth(duration int, serverHealthsPtrs[]*ServerHealth, testId int) {
   defer resp.Body.Close()
   log.Println("sent post")
   return
+}
+
+// takes in a server IP and port and returns T/F if it can be reached
+func CheckServerAvail(server Message) bool {
+  res, err := http.Get("http://" + server.Ip + ":" + server.Port)
+  if err != nil || res == nil {
+    log.Println("Server could not be contacted ", server.Ip)
+    return false
+  }
+  log.Println("Server contacted")
+  return true
+}
+
+// takes in a server IP and returns T/F if the health service can be reached
+func CheckServerHealthAvail(server Message) bool {
+  _, err := http.Get("http://" + server.Ip + ":5000")
+  if err != nil {
+    log.Println("Health not available for ", server.Ip)
+    return false
+  }
+  log.Println("Got health")
+  return true
 }
