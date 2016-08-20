@@ -79,8 +79,13 @@ func updateIpTables(w http.ResponseWriter, r *http.Request) {
   w.Write(buf)
 }
 
+func respondToPing(w http.ResponseWriter, r *http.Request) {
+  w.WriteHeader(200)
+}
+
 // listens for a POST request of IPs and ports from the API server
 func main() {
   http.HandleFunc("/iptables", updateIpTables)
+  http.HandleFunc("/", respondToPing)
   http.ListenAndServe(":9000", nil)
 }
