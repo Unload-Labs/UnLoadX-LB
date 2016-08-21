@@ -25,7 +25,9 @@ type ServerAvailability struct {
 }
 
 type Message struct {
-  Ip, Port, Application string
+  Ip string
+  Port string
+  Application string
 }
 
 type SiegeInput struct {

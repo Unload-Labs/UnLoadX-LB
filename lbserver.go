@@ -80,6 +80,7 @@ func updateIpTables(w http.ResponseWriter, r *http.Request) {
 }
 
 func respondToPing(w http.ResponseWriter, r *http.Request) {
+  log.Println("got get request");
   w.WriteHeader(200)
 }
 
