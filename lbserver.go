@@ -75,8 +75,9 @@ func updateIpTables(w http.ResponseWriter, r *http.Request) {
   buf, _ := json.Marshal(siegeInit)
   // start the load balancer, passing in the array
   log.Println("starting loadbalancer")
-  loadbalancer.LoadBalance(loadbalancer.Health, serverPointers, duration, testId)
+  log.Println("responding to form submission post")
   w.Write(buf)
+  loadbalancer.LoadBalance(loadbalancer.Health, serverPointers, duration, testId)
 }
 
 func respondToPing(w http.ResponseWriter, r *http.Request) {

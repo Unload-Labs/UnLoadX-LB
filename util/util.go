@@ -228,7 +228,7 @@ func CalcAvgHealth(duration int, serverHealthsPtrs[]*ServerHealth, testId int) {
 
   resp, _ := http.Post("http://52.9.136.53:3000/api/serverhealth", "application/json", r)
   defer resp.Body.Close()
-  log.Println("sent post")
+  log.Println("sent post with health")
   return
 }
 
