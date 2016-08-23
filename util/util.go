@@ -8,6 +8,7 @@ import (
   "strings"
   "time"
   "bytes"
+  "os"
 )
 
 // data structure for storing server metrics
@@ -225,15 +226,16 @@ func CalcAvgHealth(duration int, serverHealthsPtrs[]*ServerHealth, testId int) {
   }
 
   r := bytes.NewReader(MarshalledData)
-
-  // resp, _ := http.Post("http://52.9.136.53:3000/api/serverhealth", "application/json", r)
-  resp, _ := http.Post("http://127.0.0.1:3000/api/serverhealth", "application/json", r)
-  defer resp.Body.Close()
+  if os.Getenv("ENV") == "dev" {
+    resp, _ := http.Post("http://127.0.0.1:3000/api/serverhealth", "application/json", r)
+    defer resp.Body.Close()
+  } else {
+    resp, _ := http.Post("http://52.9.136.53:3000/api/serverhealth", "application/json", r)
+    defer resp.Body.Close()
+  }
   log.Println("sent post with health")
   return
 }
-
-
 
 // takes in a server IP and port and returns T/F if it can be reached
 func CheckServerAvail(server Message) bool {

@@ -60,12 +60,10 @@ func updateIpTables(w http.ResponseWriter, r *http.Request) {
   if len(siegeVoid.Servers) > 0 {
     log.Println("detected unavail servers", siegeVoid)
     buf, _ := json.Marshal(siegeVoid)
-    log.Println(buf)
     w.Write(buf)
     return
   } else {
     serverURLs := make([]url.URL, 0)
-    // serverPointers = make([]*url.URL, 0)
     for _, element := range serversStructs {
       serverURL := url.URL{
         Scheme: "http",
@@ -78,14 +76,14 @@ func updateIpTables(w http.ResponseWriter, r *http.Request) {
     // start the load balancer, passing in the array
     log.Println("responding to form submission post")
     w.Write(buf)
-    log.Println("starting loadbalancer")
+    log.Println("Responded to form POST. Starting loadbalancer...")
     defer loadbalancer.LoadBalance(loadbalancer.Health, serverPointers, duration, testId)
     return
   }
 }
 
 func respondToPing(w http.ResponseWriter, r *http.Request) {
-  log.Println("got get request");
+  log.Println("pong");
   w.WriteHeader(200)
 }
 
