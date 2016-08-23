@@ -4,7 +4,7 @@ import (
   "net/http"
   "net/http/httputil"
   "net/url"
-  "log"
+  // "log"
   "reflect"
   "runtime"
   "github.com/aebrow4/unloadx-lb/util"
