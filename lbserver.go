@@ -25,6 +25,7 @@ func updateIpTables(w http.ResponseWriter, r *http.Request) {
 
   // store unavailable servers in this struct
   siegeVoid := lbutil.NoSiege{}
+  serverPointers := make([]*url.URL, 0)
 
   // a bunch of type assertions to index into and extract the data
   // which is a series of nested maps and interfaces
@@ -55,29 +56,32 @@ func updateIpTables(w http.ResponseWriter, r *http.Request) {
 
   // if servers are unavailable in any way, respond to the client with
   // that information, do not start LB and do not start siege
+
   if len(siegeVoid.Servers) > 0 {
     log.Println("detected unavail servers", siegeVoid)
     buf, _ := json.Marshal(siegeVoid)
+    log.Println(buf)
     w.Write(buf)
     return
-  }
-
-  serverURLs := make([]url.URL, 0)
-  serverPointers := make([]*url.URL, 0)
-  for _, element := range serversStructs {
-    serverURL := url.URL{
-      Scheme: "http",
-      Host: element.Ip + ":" + element.Port,
+  } else {
+    serverURLs := make([]url.URL, 0)
+    // serverPointers = make([]*url.URL, 0)
+    for _, element := range serversStructs {
+      serverURL := url.URL{
+        Scheme: "http",
+        Host: element.Ip + ":" + element.Port,
+      }
+      serverURLs = append(serverURLs, serverURL)
+      serverPointers = append(serverPointers, &serverURL)
     }
-    serverURLs = append(serverURLs, serverURL)
-    serverPointers = append(serverPointers, &serverURL)
+    buf, _ := json.Marshal(siegeInit)
+    // start the load balancer, passing in the array
+    log.Println("responding to form submission post")
+    w.Write(buf)
+    log.Println("starting loadbalancer")
+    defer loadbalancer.LoadBalance(loadbalancer.Health, serverPointers, duration, testId)
+    return
   }
-  buf, _ := json.Marshal(siegeInit)
-  // start the load balancer, passing in the array
-  log.Println("starting loadbalancer")
-  log.Println("responding to form submission post")
-  w.Write(buf)
-  loadbalancer.LoadBalance(loadbalancer.Health, serverPointers, duration, testId)
 }
 
 func respondToPing(w http.ResponseWriter, r *http.Request) {

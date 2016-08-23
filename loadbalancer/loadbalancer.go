@@ -4,7 +4,7 @@ import (
   "net/http"
   "net/http/httputil"
   "net/url"
-  // "log"
+  "log"
   "reflect"
   "runtime"
   "github.com/aebrow4/unloadx-lb/util"
@@ -40,12 +40,12 @@ func Health(servers []*url.URL, healths []*lbutil.ServerHealth) *httputil.Revers
     req.URL.Host = server.Host
     req.URL.Path = server.Path
   }
-
   return &httputil.ReverseProxy{Director: director}
 }
 
 // the LoadBalance function takes a loadbalancing strategy function,
 // and an array of servers which it will pass to the strategy function
+
 func LoadBalance(fn strategy, servers[]*url.URL, duration int, testId int) {
   serverHealths := make([]*lbutil.ServerHealth, 0)
   var serverHealthsPtrs []*lbutil.ServerHealth
@@ -55,6 +55,8 @@ func LoadBalance(fn strategy, servers[]*url.URL, duration int, testId int) {
     serverHealthsPtrs = lbutil.GetHealth(servers, serverHealths[0:], serverHealthsPtrs[0:], duration, testId);
   }
 
+  // this is what causes the response to the POST to not register....
   proxy := fn(servers, serverHealthsPtrs)
   http.ListenAndServe(":9090", proxy)
+  return
 }

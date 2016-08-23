@@ -226,15 +226,22 @@ func CalcAvgHealth(duration int, serverHealthsPtrs[]*ServerHealth, testId int) {
 
   r := bytes.NewReader(MarshalledData)
 
-  resp, _ := http.Post("http://52.9.136.53:3000/api/serverhealth", "application/json", r)
+  // resp, _ := http.Post("http://52.9.136.53:3000/api/serverhealth", "application/json", r)
+  resp, _ := http.Post("http://127.0.0.1:3000/api/serverhealth", "application/json", r)
   defer resp.Body.Close()
   log.Println("sent post with health")
   return
 }
 
+
+
 // takes in a server IP and port and returns T/F if it can be reached
 func CheckServerAvail(server Message) bool {
-  res, err := http.Get("http://" + server.Ip + ":" + server.Port)
+  timeout := time.Duration(3 * time.Second)
+  client := http.Client{
+      Timeout: timeout,
+  }
+  res, err := client.Get("http://" + server.Ip + ":" + server.Port)
   if err != nil || res == nil {
     log.Println("Server could not be contacted ", server.Ip)
     return false
@@ -245,7 +252,11 @@ func CheckServerAvail(server Message) bool {
 
 // takes in a server IP and returns T/F if the health service can be reached
 func CheckServerHealthAvail(server Message) bool {
-  _, err := http.Get("http://" + server.Ip + ":5000")
+  timeout := time.Duration(3 * time.Second)
+  client := http.Client{
+      Timeout: timeout,
+  }
+  _, err := client.Get("http://" + server.Ip + ":5000")
   if err != nil {
     log.Println("Health not available for ", server.Ip)
     return false
